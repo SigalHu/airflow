@@ -266,6 +266,8 @@ class BaseOperator(LoggingMixin):
         email=None,  # type: Optional[str]
         email_on_retry=True,  # type: bool
         email_on_failure=True,  # type: bool
+        ding_on_retry=True,
+        ding_on_failure=True,
         retries=0,  # type: int
         retry_delay=timedelta(seconds=300),  # type: timedelta
         retry_exponential_backoff=False,  # type: bool
@@ -316,6 +318,8 @@ class BaseOperator(LoggingMixin):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
+        self.ding_on_retry = ding_on_retry
+        self.ding_on_failure = ding_on_failure
 
         self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):

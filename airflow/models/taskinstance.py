@@ -51,7 +51,7 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import XCom, XCOM_RETURN_KEY
 from airflow.settings import Stats
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
-from airflow.utils import timezone
+from airflow.utils import timezone, dingbot
 from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container
@@ -1074,6 +1074,8 @@ class TaskInstance(Base, LoggingMixin):
                 self.log.info('Marking task as UP_FOR_RETRY')
                 if task.email_on_retry and task.email:
                     self.email_alert(error)
+                if task.ding_on_retry:
+                    self.dingbot_alert(error, is_retry=True)
             else:
                 self.state = State.FAILED
                 if task.retries:
@@ -1082,6 +1084,8 @@ class TaskInstance(Base, LoggingMixin):
                     self.log.info('Marking task as FAILED.')
                 if task.email_on_failure and task.email:
                     self.email_alert(error)
+                if task.ding_on_failure:
+                    self.dingbot_alert(error, is_retry=True)
         except Exception as e2:
             self.log.error('Failed to send email to: %s', task.email)
             self.log.exception(e2)
@@ -1305,6 +1309,18 @@ class TaskInstance(Base, LoggingMixin):
         subject = render('subject_template', default_subject)
         html_content = render('html_content_template', default_html_content)
         send_email(self.task.email, subject, html_content)
+
+    def dingbot_alert(self, exception, is_retry=False):
+        task = self.task
+        title = "Airflow alert: {self}".format(**locals())
+        exception = str(exception).replace('\n', '<br>')
+        body = (
+            "<h2> {self.task_id} </h2> <br>"
+            "Try {try_number} out of {max_tries}<br>"
+            "Exception:<br>{exception}<br>"
+            "Log: <a href='{self.log_url}'>Link</a><br>"
+        ).format(try_number=self.try_number, max_tries=self.max_tries + 1, **locals())
+        dingbot.dingbot_msg_sender(body)
 
     def set_duration(self):
         if self.end_date and self.start_date:
